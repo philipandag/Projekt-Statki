@@ -1,21 +1,37 @@
-#include "Ship.h"
-#include "Board.h"
+#include "Player.h"
+#include <stdlib.h>
 
-Ship** createShips(int carrier, int battleship, int cruiser, int destroyer)
+void createShips(Player* player)
 {
-	// there are 4 types of ships
-	Ship** ships = (Ship**)malloc(sizeof(Ship*) * 4);
-	ships[0] = (Ship*)malloc(sizeof(Ship) * carrier);
-	for (int i = 0; i < carrier; i++)
-		ships[0][i].type = CAR;
-	ships[1] = (Ship*)malloc(sizeof(Ship) * battleship);
-	for (int i = 0; i < battleship; i++)
-		ships[1][i].type = BAT;
-	ships[2] = (Ship*)malloc(sizeof(Ship) * cruiser);
-	for (int i = 0; i < cruiser; i++)
-		ships[2][i].type = CRU;
-	ships[3] = (Ship*)malloc(sizeof(Ship) * destroyer);
-	for (int i = 0; i < destroyer; i++)
-		ships[3][i].type = DES;
-	return ships;
+	player->ships = (Ship**)malloc(sizeof(Ship*) * TypesOfShips);
+	Ship** ships = player->ships;
+
+	ships[CAR] = (Ship*)malloc(sizeof(Ship) * MaxShipsOfType);
+	for (int i = 0; i < player->maxShips[CAR]; i++)
+		createShip(&(ships[CAR][i]), CAR, 0, -2, S, True, NULL, False);
+
+	ships[BAT] = (Ship*)malloc(sizeof(Ship) * MaxShipsOfType);
+	for (int i = 0; i < player->maxShips[BAT]; i++)
+		createShip(&(ships[BAT][i]), BAT, 0,-2, S, True, NULL, False);
+
+	ships[CRU] = (Ship*)malloc(sizeof(Ship) * MaxShipsOfType);
+	for (int i = 0; i < player->maxShips[CRU]; i++)
+		createShip(&(ships[CRU][i]), CRU, 0, -2, S, True, NULL, False);
+
+	ships[DES] = (Ship*)malloc(sizeof(Ship) * MaxShipsOfType);
+	for (int i = 0; i < player->maxShips[DES]; i++)
+		createShip(&(ships[DES][i]), DES, 0, -2, S, True, NULL, False);
+
+}
+void setStartingBoundary(Player* player, int y1, int x1, int y2, int x2)
+{
+	player->positionY1 = y1;
+	player->positionX1 = x1;
+	player->positionY2 = y2;
+	player->positionX2 = x2;
+}
+
+void addShip(Player* player, int y, int x, Compass direction, int id, ShipType type)
+{
+
 }

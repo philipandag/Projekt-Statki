@@ -1,8 +1,8 @@
+#include "OtherUseful.h"
 
 
-
-int intLength(int tocount, int base = 10) {
-
+int intLength(int tocount, int base) 
+{
     int digits = 0;
     while (tocount)
     {
@@ -21,4 +21,19 @@ int power10(int power) //power > 0
             value *= 10;
     }
     return value;
+}
+
+int findMax(const int* tab, int length)
+{
+    int highest = 0;
+    for (int i = 0; i < length; i++)
+        if (tab[i] > highest)
+            highest = tab[i];
+    return highest;
+}
+
+void boolSet(Bool* pointer, Bool value, int length)
+{
+    for (int i = 0; i < length; i++)
+        pointer[i] = value;
 }

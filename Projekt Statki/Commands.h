@@ -1,27 +1,38 @@
 #pragma once
-#include <stdlib.h>
-#include "EnumsAndConst.h"
-#include "OtherUseful.h"
+#include "Board.h"
 
+const int firstCommand = 1;
+const int CommandsAmount = 10;
+const int MaxCommandLength = 100;
 
-const int CommandsAmount = 20;
-const int MaxCommandLength = 20;
-enum Command {
+enum Command 
+{
 	ERROR,
 	STATE, 
 	PRINT,
 	SET_FLEET,
 	NEXT_PLAYER,
+	EXTENDED_SHIPS,
 	PLAYERA,
 	PLAYERB,
 	PLACE_SHIP,
-	SHOOT,
-
+	SHOOT
 };
 
+enum CommandArea {
+
+	COMMAND_NONE,
+	COMMAND_STATE,
+	COMMAND_PLAYERA,
+	COMMAND_PLAYERB
+};
 
 
 
 void commandsArgsInit();
 
 Command recogniseCommand(const char* command);
+
+void executeCommand(Command id, Board* board, Player* players, PlayerId* currentPlayer, char* command);
+
+void throwException(const char* command, const char* cause);
