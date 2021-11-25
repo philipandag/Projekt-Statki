@@ -1,7 +1,8 @@
 #include "Ship.h"
 #include <stdlib.h>
 #include <stdio.h>
-void createShip(Ship* ship, ShipType type, int y, int x, Compass direction, Bool newShip, ShipParts* parts, Bool online)
+
+void createShip(Ship* ship, ShipType type, int y, int x, Compass direction, Bool newShip, ShipParts* parts, Bool online, Bool placed)
 {
 	ship->type = type;
 	ship->length = ShipLength[type];
@@ -9,6 +10,9 @@ void createShip(Ship* ship, ShipType type, int y, int x, Compass direction, Bool
 	ship->y = y;
 	ship->direction = direction;
 	ship->part = (ShipParts*)malloc(sizeof(ShipParts) * ShipLength[type]);
+	ship->shipOnline = online;
+	ship->placed = placed;
+
 	if (newShip == True)
 	{
 		for (int i = 0; i < ShipLength[type]; i++)
@@ -31,5 +35,4 @@ void createShip(Ship* ship, ShipType type, int y, int x, Compass direction, Bool
 		}
 	}
 
-	ship->shipOnline = online;
 }

@@ -27,7 +27,7 @@ Board* createBoard(int y, int x)
 	return NULL;
 }
 
-void printBoard(Board* board, int mode, GameLogic logic, Player* players, PlayerId playerId)
+void printBoard(Board* board, int mode, GameLogic logic, Player** players, PlayerId playerId)
 {
 	int xIndexLength = intLength(board->sizeX, BaseX);
 	int yIndexLength = intLength(board->sizeY, BaseY);
@@ -72,7 +72,7 @@ void printBoard(Board* board, int mode, GameLogic logic, Player* players, Player
 				printf("\n");
 			printf("\n");
 		}
-		printf("PARTS REMAINING:: A : %d B : %d\n", players[A].shipPartsLeft, players[B].shipPartsLeft);
+		printf("PARTS REMAINING:: A : %d B : %d\n", players[A]->shipPartsLeft, players[B]->shipPartsLeft);
 	}
 	else if (mode == 0)
 	{
@@ -84,8 +84,8 @@ void printBoard(Board* board, int mode, GameLogic logic, Player* players, Player
 			}
 			printf("\n");
 		}	
-		if(players[A].shipPartsLeft > 0 || players[B].shipPartsLeft > 0)
-			printf("PARTS REMAINING:: A : %d B : %d\n", players[A].shipPartsLeft, players[B].shipPartsLeft);
+		if(players[A]->shipPartsLeft > 0 || players[B]->shipPartsLeft > 0)
+			printf("PARTS REMAINING:: A : %d B : %d\n", players[A]->shipPartsLeft, players[B]->shipPartsLeft);
 	}
 	
 }
@@ -96,7 +96,7 @@ char changeToBasicField(char field)
 
 	return field;
 }
-Bool playerShipPlacementFeasible(Player* player, Ship* ship)
+Bool isShipInPlayersStartingPosition(Player* player, Ship* ship)
 {
 	Bool correctMove = True;
 	switch (ship->direction)
@@ -148,18 +148,18 @@ Bool withinArea(int Ay1, int Ax1, int Ay2, int Ax2, int y, int x)
 	else
 		return False;
 }
-Bool onShip(Player* players, int y, int x)
+Bool onShip(Player** players, int y, int x)
 {
 	for(int p = 0; p <= 1; p++)
 		for (int type = 0; type < TypesOfShips; type++)
 		{
-			for (int id = 0; id < players[p].maxShips[type]; id++)
+			for (int id = 0; id < players[p]->maxShips[type]; id++)
 			{
-				switch (players[p].ships[type][id].direction)
+				switch (players[p]->ships[type][id].direction)
 				{
 				case N:
-					for (int i = 0; i < players[p].ships[type][id].length; i++)
-						if (players[p].ships[type][id].y - i == y && players[p].ships[type][id].x == x)
+					for (int i = 0; i < players[p]->ships[type][id].length; i++)
+						if (players[p]->ships[type][id].y - i == y && players[p]->ships[type][id].x == x)
 						{
 							return True;
 						}
@@ -169,160 +169,196 @@ Bool onShip(Player* players, int y, int x)
 	return False;
 }
 
-Bool shootShip(Board* board, Player* players, int y, int x)
+Bool shootThatShip(Board* board, Ship* ship, int partId)
 {
-	Ship pendingShip;
+	Bool didHit = False;
+	//Ship pendingShip = player->ships[type][id];
+	Ship pendingShip = *ship;
 
+	//createShip(&pendingShip, static_cast<ShipType>(type), player->ships[type][id].y, player->ships[type][id].x, player->ships[type][id].direction, False, player->ships[type][id].part, player->ships[type][id].shipOnline, player->ships[type][id].placed);
+	if (pendingShip.part[partId] != PART_DESTROYED)
+		didHit = True;
+	pendingShip.part[partId] = PART_DESTROYED;
+	updateShip(board, ship, &pendingShip);
+	*ship = pendingShip;
+
+	return didHit;
+}
+Bool tryToShoot(Board* board, Player* player, int type, int id, int y, int x, int xDir, int yDir, int partId)
+{
+	if ((player->ships[type][id].y + partId*yDir == y) && (player->ships[type][id].x + partId*xDir == x))
+	{
+		if (shootThatShip(board, &player->ships[type][id], partId))
+			player->shipPartsLeft--;
+	}
+	return True;
+}
+
+Bool shootShip(Board* board, Player** players, int y, int x)
+{
 	for (int p = 0; p <= 1; p++)
 		for (int type = 0; type < TypesOfShips; type++)
-		{
-			for (int id = 0; id < players[p].maxShips[type]; id++)
-			{
-				switch (players[p].ships[type][id].direction)
+			for (int id = 0; id < players[p]->maxShips[type]; id++)
+				switch (players[p]->ships[type][id].direction)
 				{
 				case N: // Facing Y-
-					for (int i = 0; i < players[p].ships[type][id].length; i++)
-						if ( (players[p].ships[type][id].y + i == y) && (players[p].ships[type][id].x == x) )
-						{
-							createShip(&pendingShip, static_cast<ShipType>(type), players[p].ships[type][id].y, players[p].ships[type][id].x, players[p].ships[type][id].direction, False, players[p].ships[type][id].part, players[p].ships[type][id].shipOnline);
-							if (pendingShip.part[i] != PART_DESTROYED)
-								players[p].shipPartsLeft -= 1;
-							pendingShip.part[i] = PART_DESTROYED;
-							updateShip(board, &players[p].ships[type][id], &pendingShip);
-							players[p].ships[type][id] = pendingShip;
-							return True;
-						}
+					for (int i = 0; i < players[p]->ships[type][id].length; i++)
+						if ( (players[p]->ships[type][id].y + i == y) && (players[p]->ships[type][id].x == x) )
+							tryToShoot(board, players[p], type, id, y, x, 0, 1, i);						
 					break;
 				case S: // Facing Y+
-					for (int i = 0; i < players[p].ships[type][id].length; i++)
-						if (players[p].ships[type][id].y = i == y && players[p].ships[type][id].x == x)
-						{
-							createShip(&pendingShip, static_cast<ShipType>(type), players[p].ships[type][id].y, players[p].ships[type][id].x, players[p].ships[type][id].direction, False, players[p].ships[type][id].part, players[p].ships[type][id].shipOnline);
-							pendingShip.part[i] = PART_DESTROYED;
-							updateShip(board, &players[p].ships[type][id], &pendingShip);
-							players[p].ships[type][id] = pendingShip;
-							return True;
-						}
+					for (int i = 0; i < players[p]->ships[type][id].length; i++)
+						if (players[p]->ships[type][id].y - i == y && players[p]->ships[type][id].x == x)
+							tryToShoot(board, players[p], type, id, y, x, 0, -1, i);						
 					break;
 				case E: // Facing X+
-					for (int i = 0; i < players[p].ships[type][id].length; i++)
-						if (players[p].ships[type][id].y == y && players[p].ships[type][id].x - i == x)
-						{
-							createShip(&pendingShip, static_cast<ShipType>(type), players[p].ships[type][id].y, players[p].ships[type][id].x, players[p].ships[type][id].direction, False, players[p].ships[type][id].part, players[p].ships[type][id].shipOnline);
-							pendingShip.part[i] = PART_DESTROYED;
-							updateShip(board, &players[p].ships[type][id], &pendingShip);
-							players[p].ships[type][id] = pendingShip;
-							return True;
-						}
+					for (int i = 0; i < players[p]->ships[type][id].length; i++)
+						if (players[p]->ships[type][id].y == y && players[p]->ships[type][id].x - i == x)
+							tryToShoot(board, players[p], type, id, y, x, -1, 0, i);			
 					break;
 				case W: // Facing X-
-					for (int i = 0; i < players[p].ships[type][id].length; i++)
-						if (players[p].ships[type][id].y == y && players[p].ships[type][id].x + i == x)
-						{
-							createShip(&pendingShip, static_cast<ShipType>(type), players[p].ships[type][id].y, players[p].ships[type][id].x, players[p].ships[type][id].direction, False, players[p].ships[type][id].part, players[p].ships[type][id].shipOnline);
-							pendingShip.part[i] = PART_DESTROYED;
-							updateShip(board, &players[p].ships[type][id], &pendingShip);
-							players[p].ships[type][id] = pendingShip;
-							return True;
-						}
+					for (int i = 0; i < players[p]->ships[type][id].length; i++)
+						if (players[p]->ships[type][id].y == y && players[p]->ships[type][id].x + i == x)
+							tryToShoot(board, players[p], type, id, y, x, 1, 0, i);
 					break;
 				default:
 					return False;
 				}
-			}
-		}
 	return False;
 }
 void deleteShip(Board* board, Ship* ship)
+{
+	drawShip(board, ship, FIELD_EMPTY);
+	ship->shipOnline = False;
+}
+void drawShip(Board* board, Ship* ship, Field piece)
 {
 	switch (ship->direction)
 	{
 	case N: //Facing Y-, draw in Y+
 		for (int i = 0; i < ship->length; i++)
-			board->fields[ship->y + i][ship->x] = FIELD_EMPTY;
+			setBoardField(board, ship->y + i, ship->x, piece == FIELD_SHIP ? ship->part[i] : piece);
+		//board->fields[ship->y + i][ship->x] = FIELD_EMPTY;
 		break;
 	case S: //Facing Y+, draw in Y-
 		for (int i = 0; i < ship->length; i++)
-			board->fields[ship->y - i][ship->x] = FIELD_EMPTY;
+			setBoardField(board, ship->y - i, ship->x, piece == FIELD_SHIP ? ship->part[i] : piece);
+		//board->fields[ship->y - i][ship->x] = FIELD_EMPTY;
 		break;
 	case E: //Facing X+, draw in X-
 		for (int i = 0; i < ship->length; i++)
-			board->fields[ship->y][ship->x - i] = FIELD_EMPTY;
+			setBoardField(board, ship->y, ship->x - i, piece == FIELD_SHIP ? ship->part[i] : piece);
+		//board->fields[ship->y][ship->x - i] = FIELD_EMPTY;
 		break;
 	case W: //Facing X-, draw in X+
 		for (int i = 0; i < ship->length; i++)
-			board->fields[ship->y][ship->x + i] = FIELD_EMPTY;
+			setBoardField(board, ship->y, ship->x + i, piece == FIELD_SHIP ? ship->part[i] : piece);
+		//board->fields[ship->y][ship->x + i] = FIELD_EMPTY;
 		break;
 	}
-	ship->shipOnline = False;
 }
+
 void placeShip(Board* board, Ship* ship)
 {
-	if (checkShipPositionBoard(board, ship) == False)
-		return;
-
-	Field shipPart = FIELD_EMPTY;
-
-	for (int i = 0; i < ship->length; i++)
-	{
-		shipPart = static_cast<Field>(ship->part[i]);
-		switch (ship->direction)// Ships starts at head and extends bacwards
-		{
-		case N: //Facing Y-
-				board->fields[ship->y + i][ship->x] = shipPart;
-				break;
-		case S: //Facing Y-
-				board->fields[ship->y - i][ship->x] = shipPart;
-				break;
-		case E: //Facing X+
-				board->fields[ship->y][ship->x - i] = shipPart;
-				break;
-		case W: //Facing X-
-				board->fields[ship->y][ship->x + i] = shipPart;
-				break;
-		}
-	}
-	ship->shipOnline = False;
+	//if (checkShipPositionBoard(board, ship) == False)
+	//	return;
+	drawShip(board, ship, FIELD_SHIP);
+}
+inline Field partToField(ShipParts part)
+{
+	return static_cast<Field>(part);
 }
 void updateShip(Board* board, Ship* oldShip, Ship* newShip)
 {
 	deleteShip(board, oldShip);
 	placeShip(board, newShip);
 }
-void place1(Board* board, int y, int x, char piece) 
+
+void setBoardField(Board* board, int y, int x, char piece) 
 {
 	board->fields[y][x] = piece;
 }
 
-Bool checkShipPositionBoard(Board* board, Ship* ship)
+Bool placeReef(Board* board, int y1, int x1, int y2, int x2)
 {
-	Bool correctMove = True;
-	if (ship->x < 0 || ship->x >= board->sizeX || ship->y < 0 || ship->y >= board->sizeY)
+	if(onBoard(board, y1, x1) && onBoard(board, y2, x2))
+		for(int y = y1; y <= y2; y++)
+			for (int x = x1; x <= x2; x++)
+			{
+				if (board->fields[y][x] == FIELD_EMPTY)
+					board->fields[y][x] = FIELD_REEF;
+				else
+					return False;
+			}
+	return True;
+}
+Bool checkShipPartTooClose(Board* board, Ship* ship, int xDir, int yDir, int partId)
+{
+	if (xDir != 0 && yDir != 0)
+		return True;
+
+	Bool collides = False;
+
+	int dy = yDir;
+	int dx = xDir;
+
+	int dy1 = dy == 0 ? -1 : dy*partId;
+	int dy2 = dy == 0 ? 1 : dy*partId;
+	int dx1 = dx == 0 ? -1 : dx*partId;
+	int dx2 = dx == 0 ? 1 : dx*partId;
+	// dy1, dy2 - if oriented horizontally, they equal -1, 1, else dy
+	// dx1, dx2 - if oriented vertically, they equal -1, 1, else dx
+	if (partId == -1 || partId == ship->length)
+	{
+		if (onBoard(board, ship->y + dy1, ship->x + dx1) && (board->fields[ship->y + dy1][ship->x + dx1] != FIELD_EMPTY && board->fields[ship->y + dy1][ship->x + dx1] != FIELD_REEF)
+			)// Positions in front of and behind the ship
+		{
+			collides = True;
+			//break;
+		}
+	}
+	if (
+		partId == -1 && onBoard(board, ship->y - yDir, ship->x - xDir) && (board->fields[ship->y - yDir][ship->x - xDir] != FIELD_EMPTY && board->fields[ship->y - yDir][ship->x - xDir] != FIELD_REEF)
+		||
+		partId == ship->length && onBoard(board, ship->y + yDir, ship->x + xDir) && (board->fields[ship->y + yDir][ship->x + xDir] != FIELD_EMPTY && board->fields[ship->y + yDir][ship->x + xDir] != FIELD_REEF)
+		||
+		onBoard(board, ship->y + dy1, ship->x + dx1) && (board->fields[ship->y + dy1][ship->x + dx1] != FIELD_EMPTY && board->fields[ship->y + dy1][ship->x + dx1] != FIELD_REEF)
+		||
+		onBoard(board, ship->y + dy2, ship->x + dx2) && (board->fields[ship->y + dy2][ship->x + dx2] != FIELD_EMPTY && board->fields[ship->y + dy2][ship->x + dx2] != FIELD_REEF)
+		)// ship can only touch EMPTY or REEF, any other field is a ship part
+	{
+		collides = True;
+		//break;
+	}
+
+	return collides;
+}
+
+Field checkShipPositionBoard(Board* board, Ship* ship)
+{
+	Field collidesWith = FIELD_EMPTY;
+	if (ship->x >= 0 && ship->x < board->sizeX || ship->y >= 0 || ship->y < board->sizeY)
 	{
 		switch (ship->direction)
 		{
 		case N://Facing: Y-
 			for (int i = 0; i < ship->length; i++) // check colision
 			{
-				if (board->fields[ship->y + i][ship->x] != FIELD_EMPTY)
+				if (board->fields[ship->y + i][ship->x] == FIELD_REEF)
 				{
-					correctMove = False;
+					return FIELD_REEF;
+					break;
+				}
+				if (board->fields[ship->y + i][ship->x] == FIELD_RADAR || board->fields[ship->y + i][ship->x] == FIELD_CANNON || board->fields[ship->y + i][ship->x] == FIELD_SHIP || board->fields[ship->y + i][ship->x] == FIELD_ENGINE)
+				{
+					return FIELD_SHIP;
 					break;
 				}
 			}
 			for (int i = -1; i < ship->length+1; i++) // check if touches other ships
 			{
-				if (
-					board->fields[ship->y + i][ship->x-1] != FIELD_EMPTY ||
-					board->fields[ship->y + i][ship->x-1] != FIELD_REEF  ||
-					board->fields[ship->y + i][ship->x+1] != FIELD_EMPTY ||
-					board->fields[ship->y + i][ship->x+1] != FIELD_REEF
-					)
-
-				{
-					correctMove = False;
-					break;
-				}
+				if (checkShipPartTooClose(board, ship, 0, 1, i))
+					return FIELD_SHIP;
 			}
 			break;
 
@@ -331,23 +367,14 @@ Bool checkShipPositionBoard(Board* board, Ship* ship)
 			{
 				if (board->fields[ship->y - i][ship->x] != FIELD_EMPTY)
 				{
-					correctMove = False;
+					collidesWith = FIELD_SHIP;
 					break;
 				}
 			}
 			for (int i = -1; i < ship->length + 1; i++) // check if touches other ships
 			{
-				if (
-					board->fields[ship->y - i][ship->x - 1] != FIELD_EMPTY ||
-					board->fields[ship->y - i][ship->x - 1] != FIELD_REEF ||
-					board->fields[ship->y - i][ship->x + 1] != FIELD_EMPTY ||
-					board->fields[ship->y - i][ship->x + 1] != FIELD_REEF
-					)
-
-				{
-					correctMove = False;
-					break;
-				}
+				if(checkShipPartTooClose(board, ship, 0, -1, i))
+					return FIELD_SHIP;
 			}
 			break;
 
@@ -356,23 +383,14 @@ Bool checkShipPositionBoard(Board* board, Ship* ship)
 			{
 				if (board->fields[ship->y][ship->x - i] != FIELD_EMPTY)
 				{
-					correctMove = False;
+					collidesWith = FIELD_SHIP;
 					break;
 				}
 			}
 			for (int i = -1; i < ship->length + 1; i++) // check if touches other ships
 			{
-				if (
-					board->fields[ship->y - 1][ship->x + i] != FIELD_EMPTY ||
-					board->fields[ship->y - 1][ship->x + i] != FIELD_REEF ||
-					board->fields[ship->y + 1][ship->x + i] != FIELD_EMPTY ||
-					board->fields[ship->y + 1][ship->x + i] != FIELD_REEF
-					)
-
-				{
-					correctMove = False;
-					break;
-				}
+				if(checkShipPartTooClose(board, ship, -1, 0, i))
+					return FIELD_SHIP;
 			}
 			break;
 
@@ -381,29 +399,21 @@ Bool checkShipPositionBoard(Board* board, Ship* ship)
 			{
 				if (board->fields[ship->y][ship->x + i] != FIELD_EMPTY)
 				{
-					correctMove = False;
+					collidesWith = FIELD_SHIP;
 					break;
 				}
 			}
 			for (int i = -1; i < ship->length + 1; i++) // check if touches other ships
 			{
-				if (
-					board->fields[ship->y - 1][ship->x - i] != FIELD_EMPTY ||
-					board->fields[ship->y - 1][ship->x - i] != FIELD_REEF  ||
-					board->fields[ship->y + 1][ship->x - i] != FIELD_EMPTY ||
-					board->fields[ship->y + 1][ship->x - i] != FIELD_REEF
-					)
-
-				{
-					correctMove = False;
-					break;
-				}
+				if(checkShipPartTooClose(board, ship, 1, 0, i))
+					return FIELD_SHIP;
 			}
 			break;
 		}
 	}
-	if (correctMove)
-		return True;
+	else
+		collidesWith = FIELD_SHIP;
 
-	return False;
+
+	return collidesWith;
 }

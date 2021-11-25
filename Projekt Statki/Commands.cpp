@@ -4,109 +4,166 @@
 #include <stdio.h>
 #include <string.h>
 
-const char* commandsText[CommandsAmount];
-int commandArgs[CommandsAmount];
-Bool Initialised = False;
-CommandArea commandArea;
-GameLogic gameLogic;
+const char* CommandsText[CommandsAmount];
+int CommandArgs[CommandsAmount];
+const char* ErrorCause[CommandsAmount][10];
 
-const char* errorCause[CommandsAmount][10];
-
-
-void commandsArgsInit()
+GameState* createGameState()
 {
-	Initialised = True;
-	gameLogic = BASIC_LOGIC;
-	commandArea = COMMAND_NONE;
+	GameState* game = (GameState*)malloc(sizeof(GameState));
+	game->board = (Board*)malloc(sizeof(Board));
+
+	game->players = (Player**)malloc(sizeof(Player*) * 2);
+	game->players[A] = createPlayer();
+	game->players[B] = createPlayer();
+
+	game->currentPlayer = (PlayerId*)malloc(sizeof(PlayerId));
+	*game->currentPlayer = A;
+
+	game->gameLogic = (GameLogic*)malloc(sizeof(GameLogic));
+	*game->gameLogic = BASIC_LOGIC;
+
+	game->commandArea = (CommandArea*)malloc(sizeof(CommandArea));
+	*game->commandArea = COMMAND_NONE;
+
+	return game;
+}
+
+void commandsArgsInit(GameState* game)
+{
+
+	/*CommandsText = (const char**)malloc(sizeof(char*) * CommandsAmount);
 	for (int i = 0; i < CommandsAmount; i++)
-		commandsText[i] = (const char*)malloc(sizeof(char) * MaxCommandLength);
+		CommandsText[i] = (char*)malloc(sizeof(char) * MaxCommandLength);
+
+	CommandArgs = (int*)malloc(sizeof(int) * CommandsAmount);
+
+	ErrorCause = (const char***)malloc(sizeof(const char**) * CommandsAmount);
+	for (int i = 0; i < CommandsAmount; i++) {
+		ErrorCause[i] = (const char**)malloc(sizeof(char*) * MaxDifferentErrors);
+		for (int j = 0; j < MaxDifferentErrors; j++)
+			ErrorCause[i][j] = (char*)malloc(sizeof(char) * MaxErrorSize);
+	}
+
 	
-	errorCause[ERROR][0] = "UNKNOWN COMMAND";
+	for (int i = 0; i < CommandsAmount; i++)
+		CommandsText[i] = (char*)malloc(sizeof(char) * MaxCommandLength);*/
+
+	*game->gameLogic = BASIC_LOGIC;
+	*game->commandArea = COMMAND_NONE;
+	ErrorCause[ERROR][0] = "UNKNOWN COMMAND";
+	ErrorCause[ERROR][1] = "WRONG ARGUMENTS";
 
 	// STATE COMMANDS
-	commandArgs[STATE] = 0;
-	commandsText[STATE] = "[state]";
-	errorCause[STATE][0] = "STATE COMMAND ERROR";
+	CommandArgs[STATE] = 0;
+	CommandsText[STATE] = "[state]";
+	ErrorCause[STATE][0] = "STATE COMMAND ERROR";
 
-	commandArgs[PRINT] = 1;
-	commandsText[PRINT] = "PRINT";
-	errorCause[PRINT][0] = "BASIC LOGIC - ONLY PRINT 0 ALLOWED";
-	errorCause[PRINT][1] = "PRINT MODE SHOULD BE EITHER 0 OR 1";
-	errorCause[PRINT][2] = "NO PLAYER SELECTED";
+	CommandArgs[PRINT] = 1;
+	CommandsText[PRINT] = "PRINT";
+	ErrorCause[PRINT][0] = "BASIC LOGIC - ONLY PRINT 0 ALLOWED";
+	ErrorCause[PRINT][1] = "PRINT MODE SHOULD BE EITHER 0 OR 1";
+	ErrorCause[PRINT][2] = "NO PLAYER SELECTED";
 
-	commandArgs[SET_FLEET] = 4;
-	commandsText[SET_FLEET] = "SET_FLEET";
-	errorCause[SET_FLEET][0] = "FIELD DOES NOT EXIST";
+	CommandArgs[SET_FLEET] = 4;
+	CommandsText[SET_FLEET] = "SET_FLEET";
+	ErrorCause[SET_FLEET][0] = "SHIPS AMOUNT MUST BE BETWEEN 0 AND 10";
+	ErrorCause[SET_FLEET][1] = "ONLY AVAILABLE IN STATE";
+	ErrorCause[SET_FLEET][2] = "NO SUCH PLAYER, USE A OR B";
 
-	commandArgs[NEXT_PLAYER] = 1;
-	commandsText[NEXT_PLAYER] = "NEXT_PLAYER";
-	errorCause[NEXT_PLAYER][0] = "NO SUCH PLAYER, USE A OR B";
+	CommandArgs[NEXT_PLAYER] = 1;
+	CommandsText[NEXT_PLAYER] = "NEXT_PLAYER";
+	ErrorCause[NEXT_PLAYER][0] = "NO SUCH PLAYER, USE A OR B";
 
-	commandArgs[EXTENDED_SHIPS] = 0;
-	commandsText[EXTENDED_SHIPS] = "EXTENDED_SHIPS";
-	errorCause[EXTENDED_SHIPS][0] = "";
+	CommandArgs[EXTENDED_SHIPS] = 0;
+	CommandsText[EXTENDED_SHIPS] = "EXTENDED_SHIPS";
+	ErrorCause[EXTENDED_SHIPS][0] = "";
 
+	CommandArgs[INIT_POSITION] = 5;
+	CommandsText[INIT_POSITION] = "INIT_POSITION";
+	ErrorCause[INIT_POSITION][0] = "INIT_POSITION ERR";
+
+	CommandArgs[SHIP] = 7;
+	CommandsText[SHIP] = "SHIP";
+	ErrorCause[SHIP][0] = "NO SUCH PLAYER, USE A OR B";
+	ErrorCause[SHIP][1] = "NO SUCH SHIP CLASS, ALLOWED: CAR, BAT, CRU, DES";
+	ErrorCause[SHIP][2] = "NO SUCH DIRECTION, ALLOWED: N, S, E, W";
+	ErrorCause[SHIP][4] = "WRONG PARTS";
+	ErrorCause[SHIP][5] = "SHIP ALREADY PRESENT";
+	ErrorCause[SHIP][6] = "ALL SHIPS OF THE CLASS ALREADY SET";
+	ErrorCause[SHIP][7] = "PLACING SHIP TOO CLOSE TO OTHER SHIP";
+	ErrorCause[SHIP][8] = "PLACING SHIP ON REEF";
+	ErrorCause[SHIP][3] = "ONLY AVAILABLE IN STATE";
+
+	CommandArgs[REEF] = 2;
+	CommandsText[REEF] = "REEF";
+	ErrorCause[REEF][0] = "FIELD DOES NOT EXIST";
+
+	CommandArgs[BOARD_SIZE] = 2;
+	CommandsText[BOARD_SIZE] = "BOARD_SIZE";
+	ErrorCause[BOARD_SIZE][0] = "BOARD_SIZE error";
 
 	//PLAYER COMMANDS
-	commandArgs[PLAYERA] = 0;
-	commandsText[PLAYERA] = "[playerA]";
-	errorCause[PLAYERA][0] = "THE OTHER PLAYER EXPECTED";
-	errorCause[PLAYERA][1] = "NOT ALL SHIPS PLACED";
+	CommandArgs[PLAYERA] = 0;
+	CommandsText[PLAYERA] = "[playerA]";
+	ErrorCause[PLAYERA][0] = "THE OTHER PLAYER EXPECTED";
+	ErrorCause[PLAYERA][1] = "NOT ALL SHIPS PLACED";
 
-	commandArgs[PLAYERB] = 0;
-	commandsText[PLAYERB] = "[playerB]";
-	errorCause[PLAYERB][0] = "THE OTHER PLAYER EXPECTED";
-	errorCause[PLAYERB][1] = "NOT ALL SHIPS PLACED";
+	CommandArgs[PLAYERB] = 0;
+	CommandsText[PLAYERB] = "[playerB]";
+	ErrorCause[PLAYERB][0] = "THE OTHER PLAYER EXPECTED";
+	ErrorCause[PLAYERB][1] = "NOT ALL SHIPS PLACED";
 
-	commandArgs[PLACE_SHIP] = 5;
-	commandsText[PLACE_SHIP] = "PLACE_SHIP";
-	errorCause[PLACE_SHIP][0] = "FIELD DOES NOT EXIST";
-	errorCause[PLACE_SHIP][1] = "NOT IN STARTING POSITION";
-	errorCause[PLACE_SHIP][2] = "SHIP ALREADY PRESENT";
-	errorCause[PLACE_SHIP][3] = "ALL SHIPS OF THE CLASS ALREADY SET";
-	errorCause[PLACE_SHIP][4] = "NO SUCH SHIP CLASS, ALLOWED: CAR, BAT, CRU, DES";
-	errorCause[PLACE_SHIP][5] = "NO PLAYER SELECTED";
-	errorCause[PLACE_SHIP][6] = "NO SUCH DIRECTION, ALLOWED: N, S, E, W";
-	errorCause[PLACE_SHIP][7] = "ILLEGAL SHIP POSITION";
+	CommandArgs[PLACE_SHIP] = 5;
+	CommandsText[PLACE_SHIP] = "PLACE_SHIP";
+	ErrorCause[PLACE_SHIP][0] = "FIELD DOES NOT EXIST";
+	ErrorCause[PLACE_SHIP][1] = "NOT IN STARTING POSITION";
+	ErrorCause[PLACE_SHIP][2] = "SHIP ALREADY PRESENT";
+	ErrorCause[PLACE_SHIP][3] = "ALL SHIPS OF THE CLASS ALREADY SET";
+	ErrorCause[PLACE_SHIP][4] = "NO SUCH SHIP CLASS, ALLOWED: CAR, BAT, CRU, DES";
+	ErrorCause[PLACE_SHIP][5] = "NO PLAYER SELECTED";
+	ErrorCause[PLACE_SHIP][6] = "NO SUCH DIRECTION, ALLOWED: N, S, E, W";
+	ErrorCause[PLACE_SHIP][7] = "ILLEGAL SHIP POSITION";
 
 
-	commandArgs[SHOOT] = 2;
-	commandsText[SHOOT] = "SHOOT";
-	errorCause[SHOOT][0] = "THE OTHER PLAYER EXPECTED";
-	errorCause[SHOOT][1] = "FIELD DOES NOT EXIST";
-	errorCause[SHOOT][2] = "NOT ALL SHIPS PLACED";
+	CommandArgs[SHOOT] = 2;
+	CommandsText[SHOOT] = "SHOOT";
+	ErrorCause[SHOOT][0] = "THE OTHER PLAYER EXPECTED";
+	ErrorCause[SHOOT][1] = "FIELD DOES NOT EXIST";
+	ErrorCause[SHOOT][2] = "NOT ALL SHIPS PLACED";
+	ErrorCause[SHOOT][3] = "NOT ALLOWED IN EXTENDED SHIPS";
+	ErrorCause[SHOOT][4] = "CAN'T SHOOT MORE THAN ONCE A TURN";
 }
+
 
 Command recogniseCommand(const char* command)
 {
-	if (Initialised == False)
-		commandsArgsInit();
-
 	Bool commands[CommandsAmount];
 	boolSet(commands, True, CommandsAmount);
 
 	int commandsLeft = CommandsAmount;
-	for (int cID = firstCommand; cID < CommandsAmount; cID++)
-	{
-		for (int i = 0; i < MaxCommandLength; i++)
-		{
-			if (command[i] == ' ' || command[i] == '\0' || command[i] == '\n')
-				break;
-
-			if (commands[cID] == True)
+	for (int cID = firstCommand; cID < CommandsAmount; cID++) {
+		if(CommandsText[cID] != NULL)
+			for (int i = 0; i < MaxCommandLength; i++)
 			{
-				if (commandsText[cID][i] != command[i])
-				{
+				if (command[i] == ' ' || command[i] == '\0' || command[i] == '\n')
 					commands[cID] = False;
-					commandsLeft--;
-					break;
+
+				if (commands[cID] == True) {
+
+					if (CommandsText[cID][i] != command[i])
+					{
+						commands[cID] = False;
+						commandsLeft--;
+						break;
+					}
+				}
+				if (CommandsText[cID][i + 1] == '\0' && commands[cID] == True) { // Jeœli sprawdzono ca³y wzorzec i wci¹¿ siê zgadza, to musi byæ to
+					return static_cast<Command>(cID);
 				}
 			}
-			if(commandsText[cID][i+1] == '\0' && commands[cID] == True) // Jeœli sprawdzono ca³y wzorzec i wci¹¿ siê zgadza, to musi byæ to
-				return static_cast<Command>(cID);
-		}
 	}
-	
+
 	if (commandsLeft == 1)
 	{
 		for (int cID = 0; cID < CommandsAmount; cID++)
@@ -116,21 +173,33 @@ Command recogniseCommand(const char* command)
 			}
 	}
 
-
 	return ERROR;
 }
-char* nextArg(char* command)
+
+Bool nextArg(char** command)
 {
 	for (int i = 0; i < MaxCommandLength; i++)
-		if (command[i] == ' ')
-			return &command[i + 1];
-	return NULL;
+	{
+		if ((*command)[i] == ' ')
+		{
+			if ((*command)[i + 1] != ' ' && (*command)[i + 1] != '\0')
+			{
+				(*command) = &(*command)[i + 1];
+				return True;
+			}
+			else
+			{
+				return False;
+			}
+		}
+	}
+	return False;
 }
 
-
-void executeCommand(Command id, Board* board, Player* players, PlayerId* currentPlayer, char* command)
+Bool executeCommand(Command id, GameState* game, char* command)
 {
-	char* arg;
+	char* arg = command;
+	nextArg(&arg);
 	for (int i = 0; i < MaxCommandLength; i++)
 		if (command[i] == '\n')
 		{
@@ -138,241 +207,558 @@ void executeCommand(Command id, Board* board, Player* players, PlayerId* current
 			break;
 		}
 
-	arg = nextArg(command); // Skip command name and go to arguments
 
 	int printMode;
-	char next;
-	int y, x, input_id;
-	char direction_b;
-	char shipType_b[4];
+	char p;
+	int y, x, input_id, y2, x2;
+	char c_direction;
+	char c_shipType[4];
+	char cparts[6];
+	ShipParts parts[6];
 	ShipType shipType;
 	Compass direction;
 	Ship shipPending;
+	int car, bat, cru, des;
 
 	switch (id)
 	{
 		//############   STATE COMMANDS   ###################
 	case STATE:
-		if (commandArea == COMMAND_NONE)
-			commandArea = COMMAND_STATE;
-		else if (commandArea == COMMAND_STATE)
-			commandArea = COMMAND_NONE;
+		if ( !commandSTATE(COMMAND_STATE, game, command))
+			return False;
 		break;
 		//=====================================================
 	case PRINT:
-
-		if (sscanf(arg, "%d", &printMode) != 1)
-		{
-			throwException(command, errorCause[PRINT][1]);
-			break;
-		}
-
-		if (gameLogic == BASIC_LOGIC)
-		{
-			if (commandArea == COMMAND_STATE || commandArea == COMMAND_PLAYERA || commandArea == COMMAND_PLAYERB)
-			{
-
-				//if (printMode != 0)
-				if (printMode != 0 && printMode != 1)
-				{
-					throwException(command, errorCause[PRINT][0]);
-				}
-				else
-				{
-					printBoard(board, printMode, gameLogic, players, *currentPlayer);
-				}
-			}
-			else
-			{
-				throwException(command, errorCause[PRINT][2]);
-			}
-		}
-		else
-		{
-			if (printMode != 0 && printMode != 1)
-			{
-				throwException(command, errorCause[PRINT][1]);
-			}
-			else if (commandArea == COMMAND_STATE)
-			{
-				printBoard(board, printMode, gameLogic, players, BOTH);
-			}
-			else if (commandArea == PLAYERA)
-			{
-				printBoard(board, printMode, gameLogic, players, A);
-			}
-			else if (commandArea == PLAYERB)
-			{
-				printBoard(board, printMode, gameLogic, players, B);
-			}
-			else
-			{
-				throwException(command, errorCause[PRINT][2]);
-			}
-		}
+		if ( !commandPRINT(game, arg, command))
+			return False;
 		break;
 		//=====================================================
 	case SET_FLEET:
+		if ( !commandSET_FLEET(game, arg, command))
+			return False;
 		break;
 		//=====================================================
 	case NEXT_PLAYER:
-		sscanf(arg, "%c", &next);
-		if (next == 'A')
-			*currentPlayer = A;
-		else if (next == 'B')
-			*currentPlayer = B;
-		else
-			throwException(command, errorCause[NEXT_PLAYER][0]);
+		if ( !commandNEXT_PLAYER(game, arg, command))
+			return False;
 		break;
 		//=====================================================
 	case EXTENDED_SHIPS:
-		gameLogic = EXTENDED_LOGIC;
+		*game->gameLogic = EXTENDED_LOGIC;
 		break;
 
+	case INIT_POSITION:
+		if ( !commandINIT_POSITION(game, arg, command))
+			return False;
+		break;
 
+	case SHIP:
+		if ( !commandSHIP(game, arg, command))
+			return False;
+		break;
+	case REEF:
+		if ( !commandREEF(game, arg, command))
+			return False;
+		break;
+	case BOARD_SIZE:
+		if (!commandBOARD_SIZE(game, arg, command))
+			return False;
+		break;
 		//############   PLAYER COMMANDS   ###################
 	case PLAYERA:
-		if (commandArea == COMMAND_NONE && *currentPlayer == A)
-			commandArea = COMMAND_PLAYERA;
-		else if (commandArea == COMMAND_PLAYERA)
-		{
-			commandArea = COMMAND_NONE;
-			*currentPlayer = B;
-		}
-		else
-			throwException(command, errorCause[PLAYERA][0]);
+		if ( !commandSTATE(COMMAND_PLAYERA, game, command))
+			return False;
 		break;
 		//=====================================================
 	case PLAYERB:
-		if (commandArea == COMMAND_NONE && *currentPlayer == B)
-			commandArea = COMMAND_PLAYERB;
-		else if (commandArea == COMMAND_PLAYERB)
-		{
-			commandArea = COMMAND_NONE;
-			*currentPlayer = A;
-		}
-		else
-			throwException(command, errorCause[PLAYERB][0]);
+		if ( !commandSTATE(COMMAND_PLAYERB, game, command))
+			return False;
 		break;
 		//=====================================================
 	case PLACE_SHIP:
-		
-
-		sscanf(arg, "%d", &y);
-		arg = nextArg(arg);
-		sscanf(arg, "%d", &x);
-		arg = nextArg(arg);
-		sscanf(arg, "%c", &direction_b);
-		arg = nextArg(arg);
-		sscanf(arg, "%d", &input_id);
-		arg = nextArg(arg);
-		sscanf(arg, "%3s", &shipType_b);
-		arg = nextArg(arg);
-
-
-		if (strcmp(shipType_b, "CAR") == 0)
-			shipType = CAR;
-		else if (strcmp(shipType_b, "BAT") == 0)
-			shipType = BAT;
-		else if (strcmp(shipType_b, "CRU") == 0)
-			shipType = CRU;
-		else if (strcmp(shipType_b, "DES") == 0)
-			shipType = DES;
-		else
-		{
-			throwException(command, errorCause[PLACE_SHIP][4]); // ShipType CHECKED
-			break;
-		}
-
-		if (direction_b == 'N')
-			direction = N;
-		else if (direction_b == 'S')
-			direction = S;
-		else if (direction_b == 'E')
-			direction = E;
-		else if (direction_b == 'W')
-			direction = W;
-		else
-		{
-			throwException(command, errorCause[PLACE_SHIP][6]);	// Direction CHECKED
-			break;
-		}
-		if (commandArea != COMMAND_PLAYERA && commandArea != COMMAND_PLAYERB)
-		{
-			throwException(command, errorCause[PLACE_SHIP][5]);	// If within player turn CHECKED
-			break;
-		}
-		if (input_id >= players[*currentPlayer].maxShips[shipType])
-		{
-			throwException(command, errorCause[PLACE_SHIP][3]);	// ShipId CHECKED
-			break;
-		}
-		if (players[*currentPlayer].ships[shipType][input_id].shipOnline == True)
-		{
-			throwException(command, errorCause[PLACE_SHIP][2]);	// If Ship placeable CHECKED
-			break;
-		}	
-
-		createShip(&shipPending, shipType, y, x, direction, True, NULL, True);
-
-		if (playerShipPlacementFeasible(&players[*currentPlayer], &shipPending) == False)
-		{
-			throwException(command, errorCause[PLACE_SHIP][1]);	// Last Check - colisions
-			break;
-		}
-
-		if (checkShipPositionBoard(board, &shipPending) == False)
-		{
-			throwException(command, errorCause[PLACE_SHIP][7]);	// Last Check - colisions
-			break;
-		}
-		
-		players[*currentPlayer].ships[shipType][input_id] = shipPending;
-		players[*currentPlayer].shipPartsLeft += ShipLength[shipType];
-		placeShip(board, &shipPending);
+		if ( !commandPLACE_SHIP(game, arg, command))
+			return False;
 		break;
 		
-
-
 		//=====================================================
 	case SHOOT:
-		sscanf(arg, "%d", &y);
-		arg = nextArg(arg);
-		sscanf(arg, "%d", &x);
+		if ( !commandSHOOT(game, arg, command))
+			return False;
+		break;
 
-		if ((commandArea == COMMAND_PLAYERA && *currentPlayer == A) || (commandArea == COMMAND_PLAYERB && *currentPlayer == B))
-		{
-			if (onBoard(board, y, x))
-			{
-				switch (gameLogic)
-				{
-				case BASIC_LOGIC:
-					shootShip(board, players, y, x);
-					break;
-				case EXTENDED_LOGIC:
-					break;
-				case ADVANCED_LOGIC:
-					break;
-				}
-				break;
-			}
-			else
-				throwException(command, errorCause[SHOOT][1]);
-			
-		}
-		else
-		{
-			throwException(command, errorCause[SHOOT][0]);
-		}
-		
 		//=====================================================
 	default:
-		throwException(command, errorCause[ERROR][0]);
+		throwException(command, ErrorCause[ERROR][0]);
+		return False;
 		break;
 	}
+	return True;
 }
 
 void throwException(const char* command, const char* cause) 
 {
 	printf("INVALID OPERATION \"%s\": %s\n", command, cause);
 }
+
+PlayerId checkWin(Player** players)
+{
+	if (players[A]->allPlaced == True && players[A]->shipPartsLeft <= 0)
+		return B;
+	if (players[B]->allPlaced == True && players[B]->shipPartsLeft <= 0)
+		return A;
+
+	return P_NONE;
+}
+
+Bool parseInput_player(char* p)
+{
+	if (*p == 'A')
+	{
+		*p = A;
+		return True;
+	}
+	else if (*p == 'B')
+	{
+		*p = B;
+		return True;
+	}
+	return False;
+}
+
+Bool parseInput_ship(char* c_shipType, ShipType* shipType)
+{
+	if (strcmp(c_shipType, "CAR") == 0)
+		*shipType = CAR;
+	else if (strcmp(c_shipType, "BAT") == 0)
+		*shipType = BAT;
+	else if (strcmp(c_shipType, "CRU") == 0)
+		*shipType = CRU;
+	else if (strcmp(c_shipType, "DES") == 0)
+		*shipType = DES;
+	else
+		return False;
+	return True;
+}
+
+Bool parseInput_direction(char c_direction, Compass* direction)
+{
+	if (c_direction == 'N')
+		*direction = N;
+	else if (c_direction == 'S')
+		*direction = S;
+	else if (c_direction == 'E')
+		*direction = E;
+	else if (c_direction == 'W')
+		*direction = W;
+	else
+		return False;
+	return True;
+}
+
+Bool parseInput_parts(char* cparts, ShipParts* parts, ShipType type)
+{
+	for (int i = 0; i < ShipLength[type]; i++)
+	{
+		if (cparts[i] != '0' && cparts[i] != '1')
+		{
+			return False;
+		}
+		if (cparts[i] == '1')
+		{
+			if (i == 0)
+				parts[i] = PART_RADAR;
+			else if (i == ShipLength[type] - 1)
+				parts[i] = PART_ENGINE;
+			else if (i == 1)
+				parts[i] = PART_CANNON;
+			else
+				parts[i] = PART_SHIP;
+		}
+		else
+			parts[i] = PART_DESTROYED;
+	}
+	return True;
+}
+
+PlayerId commandAreaToPlayerId(CommandArea area)
+{
+	switch (area)
+	{
+	case COMMAND_PLAYERA:
+		return A;
+	case COMMAND_PLAYERB:
+		return B;
+	case COMMAND_STATE:
+		return P_STATE;
+	}
+	return P_NONE;
+}
+
+
+PlayerId charToPlayerId(char c)
+{
+	return (PlayerId)(c - 'A');
+}
+PlayerId nextPlayer(PlayerId id)
+{
+	return (PlayerId)((int)(id + 1) % 2);
+}
+
+Bool commandSTATE(CommandArea area, GameState* game, char* command)
+{
+	PlayerId givenPlayer = commandAreaToPlayerId(area);
+	switch (area)
+	{
+	case COMMAND_STATE:
+		if (*game->commandArea == COMMAND_NONE) {
+			*game->commandArea = COMMAND_STATE;
+		}
+		else if (*game->commandArea == COMMAND_STATE) {
+			*game->commandArea = COMMAND_NONE;
+		}
+		else
+		{
+			throwException(command, ErrorCause[STATE][0]);
+			return False;
+		}
+		break;
+	case COMMAND_PLAYERA:
+	case COMMAND_PLAYERB:
+		if (*game->commandArea == COMMAND_NONE && *game->currentPlayer == givenPlayer)
+		{
+			*game->commandArea = area;
+			game->players[*game->currentPlayer]->canShoot = True;
+		}
+		else if (*game->commandArea == area)
+		{
+			*game->commandArea = COMMAND_NONE;
+			*game->currentPlayer = nextPlayer(*game->currentPlayer);
+		}
+		else
+		{
+			throwException(command, ErrorCause[PLAYERA][0]);
+			return False;
+		}
+
+		break;
+	}
+	return True;
+}
+Bool commandPRINT(GameState* game, char* arg, char* command)
+{
+	int printMode;
+	if (sscanf(arg, "%d", &printMode) != 1 || printMode != 0 && printMode != 1)
+	{
+		throwException(command, ErrorCause[PRINT][1]);
+		return False;
+	}
+	if (*game->commandArea != COMMAND_STATE && *game->commandArea != COMMAND_PLAYERA && *game->commandArea != COMMAND_PLAYERB)
+	{
+		throwException(command, ErrorCause[PRINT][2]);
+		return False;
+	}
+	printBoard(game->board, printMode, *game->gameLogic, game->players, commandAreaToPlayerId(*game->commandArea));
+	return True;
+}
+
+Bool commandSET_FLEET(GameState* game, char* arg, char* command)
+{
+	char p;
+	int car, bat, cru, des;
+	if (sscanf(arg, "%c %i %i %i %i", &p, &car, &bat, &cru, &des) != 5)
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (parseInput_player(&p) == False) {
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (*game->commandArea != STATE)
+	{
+		throwException(command, ErrorCause[SET_FLEET][1]);
+		return False;
+	}
+	if (setFleet(game->players[p], car, bat, cru, des) == False)
+	{
+		throwException(command, ErrorCause[SET_FLEET][0]);
+		return False;
+	}
+	return True;
+}
+
+Bool commandNEXT_PLAYER(GameState* game, char* arg, char* command)
+{
+	char p;
+	if (sscanf(arg, "%c", &p) == 1)
+		if (parseInput_player(&p)) {
+			*game->currentPlayer = (PlayerId)p;
+		}
+		else
+		{
+			throwException(command, ErrorCause[NEXT_PLAYER][0]);
+			return False;
+		}
+
+	return True;
+}
+
+Bool commandINIT_POSITION(GameState* game, char* arg, char* command)
+{
+	char p;
+	int y1, x1, y2, x2;
+	if (sscanf(arg, "%c %d %d %d %d", &p, &y1, &x1, &y2, &x2) != 5)
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (onBoard(game->board, y1, x1) && onBoard(game->board, y2, x2))
+	{
+		if (parseInput_player(&p) == False)
+		{
+			throwException(command, ErrorCause[ERROR][1]);
+			return False;
+		}
+		setStartingBoundary(game->players[p], y1, x1, y2, x2);
+	}
+	return True;
+}
+
+Bool commandSHIP(GameState* game, char* arg, char* command)
+{
+	char p, c_direction, c_shipType[4], cparts[6];
+	int x, y, input_id;
+	ShipType shipType;
+	Compass direction;
+	ShipParts parts[5];
+	Ship shipPending;
+
+	if (sscanf(arg, "%c %d %d %c %d %3s %5s", &p, &y, &x, &c_direction, &input_id, &c_shipType, cparts) != 7)
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (parseInput_player(&p) == False)
+	{
+		throwException(command, ErrorCause[SHIP][0]);
+		return False;
+	}
+	if (parseInput_ship(c_shipType, &shipType) == False)
+	{
+		throwException(command, ErrorCause[SHIP][1]); // ShipType CHECK
+		return False;
+	}
+	if (parseInput_direction(c_direction, &direction) == False)
+	{
+		throwException(command, ErrorCause[SHIP][2]);	// Direction CHECK
+		return False;
+	}
+	if (parseInput_parts(cparts, parts, shipType) == False)
+	{
+		throwException(command, ErrorCause[SHIP][4]);
+		return False;
+	}
+	if (*game->commandArea != COMMAND_STATE)
+	{
+		throwException(command, ErrorCause[SHIP][4]);
+		return False;
+	}
+	if (game->players[p]->ships[shipType][input_id].shipOnline == True)
+	{
+		throwException(command, ErrorCause[SHIP][5]);	// If Ship placeable CHECK
+		return False;
+	}
+	if (input_id >= game->players[p]->maxShips[shipType])
+	{
+		throwException(command, ErrorCause[SHIP][6]);	// ShipId CHECK
+		return False;
+	}
+
+	createShip(&shipPending, shipType, y, x, direction, False, parts, True, True);
+	if (!isShipInPlayersStartingPosition(game->players[p], &shipPending))
+	{
+		throwException(command, ErrorCause[SHIP][8]);	// ShipId CHECK
+		return False;
+	}
+	Field collides = checkShipPositionBoard(game->board, &shipPending);
+		switch (collides)
+		{
+		case FIELD_REEF:
+			throwException(command, ErrorCause[SHIP][8]);	
+			return False;
+			break;
+		case FIELD_SHIP:
+			throwException(command, ErrorCause[SHIP][7]);	
+			return False;
+			break;
+		case FIELD_EMPTY:
+			break;
+		default:
+			throwException(command, ErrorCause[ERROR][0]);
+		}
+
+	game->players[p]->ships[shipType][input_id] = shipPending;
+	game->players[p]->shipPartsLeft = countShipParts(game->players[p]);
+	game->players[p]->allPlaced = allShipsPlaced(game->players[p]);
+	placeShip(game->board, &shipPending);
+	return True;
+}
+
+Bool commandREEF(GameState* game, char* arg, char* command)
+{
+	int y, x;
+	if (sscanf(arg, "%d %d", &y, &x) != CommandArgs[REEF])
+	{
+		throwException(command, ErrorCause[ERROR][0]);
+		return False;
+	}
+	if (!onBoard(game->board, y, x))
+	{
+		throwException(command, ErrorCause[REEF][0]);
+		return False;
+	}
+	setBoardField(game->board, y, x, FIELD_REEF);
+	return True;
+}
+
+Bool commandPLACE_SHIP(GameState* game, char* arg, char* command)
+{
+	int y, x, input_id;
+	char c_direction, c_shipType[4];
+	ShipType shipType;
+	Compass direction;
+	Ship shipPending;
+	if (sscanf(arg, "%d %d %c %d %3s", &y, &x, &c_direction, &input_id, &c_shipType) != CommandArgs[PLACE_SHIP])
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (parseInput_ship(c_shipType, &shipType) == False)
+	{
+		throwException(command, ErrorCause[PLACE_SHIP][4]); // ShipType CHECK
+		return False;
+	}
+	if (game->players[*game->currentPlayer]->ships[shipType][input_id].shipOnline == True)
+	{
+		throwException(command, ErrorCause[PLACE_SHIP][2]);	// If Ship placeable CHECK
+		return False;
+	}
+	if (input_id >= game->players[*game->currentPlayer]->maxShips[shipType])
+	{
+		throwException(command, ErrorCause[PLACE_SHIP][3]);	// ShipId CHECK
+		return False;
+	}
+	if (*game->commandArea != COMMAND_PLAYERA && *game->commandArea != COMMAND_PLAYERB)
+	{
+		throwException(command, ErrorCause[PLACE_SHIP][5]);	// If within player turn CHECK
+		return False;
+	}
+	if (parseInput_direction(c_direction, &direction) == False)
+	{
+		throwException(command, ErrorCause[PLACE_SHIP][6]);	// Direction CHECK
+		return False;
+	}
+
+	createShip(&shipPending, shipType, y, x, direction, True, NULL, True, True);
+	if (!isShipInPlayersStartingPosition(game->players[*game->currentPlayer], &shipPending))
+	{
+		throwException(command, ErrorCause[PLACE_SHIP][1]);	// Last Check - colisions
+		return False;
+	}
+
+	Field collides = checkShipPositionBoard(game->board, &shipPending);
+	switch (collides)
+	{
+	case FIELD_REEF:
+		throwException(command, ErrorCause[SHIP][8]);
+		return False;
+		break;
+	case FIELD_SHIP:
+		throwException(command, ErrorCause[SHIP][7]);
+		return False;
+		break;
+	case FIELD_EMPTY:
+		break;
+	default:
+		throwException(command, ErrorCause[ERROR][0]);
+	}
+
+	game->players[*game->currentPlayer]->ships[shipType][input_id] = shipPending;
+	game->players[*game->currentPlayer]->shipPartsLeft += ShipLength[shipType];
+	game->players[*game->currentPlayer]->allPlaced = allShipsPlaced(game->players[*game->currentPlayer]);
+	placeShip(game->board, &shipPending);
+	return True;
+}
+
+Bool commandSHOOT(GameState* game, char* arg, char* command)
+{
+	int y, x;
+	if (sscanf(arg, "%d %d", &y, &x) != CommandArgs[SHOOT])
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (!(*game->commandArea == COMMAND_PLAYERA && *game->currentPlayer == A) && !(*game->commandArea == COMMAND_PLAYERB && *game->currentPlayer == B))
+	{
+		throwException(command, ErrorCause[SHOOT][0]);
+		return False;
+	}
+	if (onBoard(game->board, y, x) == False)
+	{
+		throwException(command, ErrorCause[SHOOT][1]);
+		return False;
+	}
+	if (allShipsPlaced(game->players[A]) == False || allShipsPlaced(game->players[B]) == False)
+	{
+		throwException(command, ErrorCause[SHOOT][2]);
+		return False;
+	}
+
+	switch (*game->gameLogic)
+	{
+	case BASIC_LOGIC:
+		if (game->players[*game->currentPlayer]->canShoot == True)
+		{
+			shootShip(game->board, game->players, y, x);
+			//game->players[A]->shipPartsLeft = countShipParts(game->players[A]);
+			//game->players[B]->shipPartsLeft = countShipParts(game->players[B]);
+			game->players[*game->currentPlayer]->canShoot = False;
+		}
+		else
+		{
+			throwException(command, ErrorCause[SHOOT][4]);
+			return False;
+		}
+		break;
+
+	case EXTENDED_LOGIC:
+		throwException(command, ErrorCause[SHOOT][3]);
+		return False;
+		break;
+
+	case ADVANCED_LOGIC:
+		break;
+	}
+	return True;
+}
+
+Bool commandBOARD_SIZE(GameState* game, char* arg, char* command)
+{
+	int y, x;
+	if (sscanf(arg, "%d %d", &y, &x) != CommandArgs[BOARD_SIZE])
+	{
+		return False;
+	}
+	for (int i = 0; i < game->board->sizeY; i++)
+		free(game->board->fields[i]);
+	free(game->board->fields);
+	free(game->board);
+	game->board = createBoard(y, x);
+	return True;
+}
+
+
+
+
+
+

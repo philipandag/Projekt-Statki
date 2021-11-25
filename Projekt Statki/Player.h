@@ -7,19 +7,23 @@
 //const int PlayerMaxCRU = 3;
 //const int PlayerMaxDES = 4;
 
-
-enum PlayerId 
+typedef enum
 {
 	A = 0,
 	B = 1,
-	BOTH = 2
-};
+	BOTH,
+	P_STATE,
+	P_NONE
+}PlayerId;
+
 
 
 struct Player 
 {
 	int maxShips[TypesOfShips] = { 1, 2, 3, 4 };
 	Ship** ships;
+	Bool allPlaced;
+	Bool canShoot;
 	int shipPartsLeft;
 
 	int positionY1;
@@ -29,7 +33,13 @@ struct Player
 };
 
 
-void createShips(Player* player);
+Player* createPlayer();
+
+Bool setFleet(Player* player, int car, int bat, int cru, int des);
+
+int countShipParts(Player* player);
+
+Bool allShipsPlaced(Player* player);
 
 void setStartingBoundary(Player* player, int y1, int x1, int y2, int x2);
 

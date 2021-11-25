@@ -1,10 +1,9 @@
 #pragma once
-#include "EnumsAndConst.h"
 #include "OtherUseful.h"
 
 
 const int TypesOfShips = 4;
-const int MaxShipsOfType = 10;
+const int MaxShipsMax = 10;
 const int MaxShipLength = 5;
 
 enum ShipType 
@@ -36,7 +35,8 @@ struct Ship
 	Compass direction;
 	ShipParts* part;
 	Bool shipOnline;
+	Bool placed;
 };
 
 
-void createShip(Ship* ship, ShipType type, int y, int x, Compass direction, Bool newShip, ShipParts* parts, Bool online);
+void createShip(Ship* ship, ShipType type, int y, int x, Compass direction, Bool newShip, ShipParts* parts, Bool online, Bool placed);

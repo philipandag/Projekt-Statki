@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="Board.cpp" />
     <ClCompile Include="Commands.cpp" />
+    <ClCompile Include="mainFunctions.cpp" />
     <ClCompile Include="OtherUseful.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Ship.cpp" />
@@ -151,6 +152,8 @@
     <ClInclude Include="Board.h" />
     <ClInclude Include="Commands.h" />
     <ClInclude Include="EnumsAndConst.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="mainFunctions.h" />
     <ClInclude Include="OtherUseful.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Ship.h" />

@@ -1,50 +1,53 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "Commands.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "main.h"
 
 using namespace std;
 
+
 int main()
 {
-	Board* board = createBoard(SizeY, SizeX); 	
-
-	Player player[2];
-	createShips(&player[A]);
-	createShips(&player[B]);
-	setStartingBoundary(&player[A], 0, 0, 9, 10);
-	setStartingBoundary(&player[B], 10, 0, 20, 10);
-	player[A].shipPartsLeft = 0;
-	player[B].shipPartsLeft = 0;
-
-	Ship** ships = (Ship**)malloc(sizeof(Ship*) * TypesOfShips * 2);
-
-	for (int j = 0; j < TypesOfShips; j++)
-		ships[j] = player[A].ships[j];
-
-	for (int j = 0; j < TypesOfShips; j++)
-		ships[j + TypesOfShips] = player[B].ships[j];
-
+	GameState* gameState = createGameState();
 	PlayerId currentPlayer = A;
+	PlayerId winner = BOTH;
+	char* userInput = (char*)malloc(sizeof(char)*MaxCommandLength);
+	Bool commandResult = True;
+	Bool gameOver = False;
 
-	Bool gameover = False;
+	gameState->board = createBoard(DefaultSizeY, DefaultSizeX);
+	setStartingBoundary(gameState->players[A], 0, 0, 9, 10);
+	setStartingBoundary(gameState->players[B], 10, 0, 20, 10);
+	commandsArgsInit(gameState);
 
-	commandsArgsInit();
-	char userInput[MaxCommandLength];
 	//############################### MAIN LOOP ##########################
-	//printBoard(board);
-	while (!gameover)
+	while (!gameOver)
 	{			
-		//printf("COMMAND: ");
-		//scanf("%20s", userInput);
-		if (!fgets(userInput, sizeof(userInput), stdin))
+		switch (readInput(userInput, MaxCommandLength))
+		{
+		case 1:
+			commandResult = executeCommand(recogniseCommand(userInput), gameState, userInput);
 			break;
-		if(strlen(userInput)>1)
-			executeCommand(recogniseCommand(userInput), board, player, &currentPlayer, userInput);
+		case -1:
+			gameOver = True;
+			break;
+		case 0:
+			break;
+		}
+
+		if (commandResult == False)
+			gameOver = True;
+
+		winner = checkWin(gameState->players);
+		
+		if (winner != P_NONE)
+		{
+			printf("%c WON", (winner + 'A'));
+			gameOver = True;
+		}
 	}
 
-	free(board);
+	free(gameState->board);
+	free(gameState->players);
+	free(gameState);
 	return 0;
 }
