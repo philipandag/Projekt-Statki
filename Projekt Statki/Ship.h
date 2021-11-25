@@ -36,6 +36,8 @@ struct Ship
 	ShipParts* part;
 	Bool shipOnline;
 	Bool placed;
+	int moves;
+	Bool canShoot;
 };
 
 

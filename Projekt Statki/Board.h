@@ -14,12 +14,13 @@ enum Field
 	FIELD_CANNON = '!',
 	FIELD_RADAR = '@',
 	FIELD_DESTROYED = 'x',
-	FIELD_REEF = '#'
+	FIELD_REEF = '#',
+	FIELD_OUT_OF_BOARD = '0'
 };
 
 struct Board 
 {
-	char** fields;
+	Field** fields;
 	int sizeX;
 	int sizeY;
 };
@@ -50,7 +51,7 @@ void deleteShip(Board* board, Ship* ship);
 
 void drawShip(Board* board, Ship* ship, Field piece);
 
-void updateShip(Board* board, Ship* oldShip, Ship* newShip);
+Field updateShip(Board* board, Ship* oldShip, Ship* newShip);
 
 inline Field partToField(ShipParts part);
 
@@ -59,4 +60,12 @@ void setBoardField(Board* board, int y, int x, char piece);
 void placeShip(Board* board, Ship* ship);
 
 Field checkShipPositionBoard(Board* board, Ship* ship);
+
+Field moveShip(Board* board, Ship* ship);
+
+Field rotateShip(Board* board, Ship* ship, char moveDir);
+
+inline Compass rotate(Compass direction, int amount);
+
+inline Field charToField(char c);
 

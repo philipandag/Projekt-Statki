@@ -123,7 +123,8 @@ void commandsArgsInit(GameState* game)
 	ErrorCause[PLACE_SHIP][4] = "NO SUCH SHIP CLASS, ALLOWED: CAR, BAT, CRU, DES";
 	ErrorCause[PLACE_SHIP][5] = "NO PLAYER SELECTED";
 	ErrorCause[PLACE_SHIP][6] = "NO SUCH DIRECTION, ALLOWED: N, S, E, W";
-	ErrorCause[PLACE_SHIP][7] = "ILLEGAL SHIP POSITION";
+	ErrorCause[PLACE_SHIP][7] = "PLACING SHIP TOO CLOSE TO OTHER SHIP";
+	ErrorCause[PLACE_SHIP][8] = "PLACING SHIP ON REEF";
 
 
 	CommandArgs[SHOOT] = 2;
@@ -133,6 +134,15 @@ void commandsArgsInit(GameState* game)
 	ErrorCause[SHOOT][2] = "NOT ALL SHIPS PLACED";
 	ErrorCause[SHOOT][3] = "NOT ALLOWED IN EXTENDED SHIPS";
 	ErrorCause[SHOOT][4] = "CAN'T SHOOT MORE THAN ONCE A TURN";
+
+	CommandArgs[MOVE] = 3;
+	CommandsText[MOVE] = "MOVE";
+	ErrorCause[MOVE][0] = "MOVE_SHIP ERROR";
+	ErrorCause[MOVE][1] = "PLACING SHIP TOO CLOSE TO OTHER SHIP";
+	ErrorCause[MOVE][2] = "PLACING SHIP ON REEF";
+	ErrorCause[MOVE][3] = "SHIP WENT FROM BOARD";
+	ErrorCause[MOVE][4] = "SHIP MOVED ALREADY";
+	ErrorCause[MOVE][5] = "SHIP CANNOT MOVE";
 }
 
 
@@ -227,31 +237,25 @@ Bool executeCommand(Command id, GameState* game, char* command)
 		if ( !commandSTATE(COMMAND_STATE, game, command))
 			return False;
 		break;
-		//=====================================================
 	case PRINT:
 		if ( !commandPRINT(game, arg, command))
 			return False;
 		break;
-		//=====================================================
 	case SET_FLEET:
 		if ( !commandSET_FLEET(game, arg, command))
 			return False;
 		break;
-		//=====================================================
 	case NEXT_PLAYER:
 		if ( !commandNEXT_PLAYER(game, arg, command))
 			return False;
 		break;
-		//=====================================================
 	case EXTENDED_SHIPS:
 		*game->gameLogic = EXTENDED_LOGIC;
 		break;
-
 	case INIT_POSITION:
 		if ( !commandINIT_POSITION(game, arg, command))
 			return False;
 		break;
-
 	case SHIP:
 		if ( !commandSHIP(game, arg, command))
 			return False;
@@ -261,7 +265,7 @@ Bool executeCommand(Command id, GameState* game, char* command)
 			return False;
 		break;
 	case BOARD_SIZE:
-		if (!commandBOARD_SIZE(game, arg, command))
+		if ( !commandBOARD_SIZE(game, arg, command))
 			return False;
 		break;
 		//############   PLAYER COMMANDS   ###################
@@ -269,23 +273,22 @@ Bool executeCommand(Command id, GameState* game, char* command)
 		if ( !commandSTATE(COMMAND_PLAYERA, game, command))
 			return False;
 		break;
-		//=====================================================
 	case PLAYERB:
 		if ( !commandSTATE(COMMAND_PLAYERB, game, command))
 			return False;
 		break;
-		//=====================================================
 	case PLACE_SHIP:
 		if ( !commandPLACE_SHIP(game, arg, command))
 			return False;
 		break;
-		
-		//=====================================================
 	case SHOOT:
 		if ( !commandSHOOT(game, arg, command))
 			return False;
 		break;
-
+	case MOVE:
+		if ( !commandMOVE(game, arg, command))
+			return False;
+		break;
 		//=====================================================
 	default:
 		throwException(command, ErrorCause[ERROR][0]);
@@ -426,8 +429,12 @@ Bool commandSTATE(CommandArea area, GameState* game, char* command)
 	case COMMAND_PLAYERB:
 		if (*game->commandArea == COMMAND_NONE && *game->currentPlayer == givenPlayer)
 		{
+			Player* currentPlayer = game->players[*game->currentPlayer];
 			*game->commandArea = area;
-			game->players[*game->currentPlayer]->canShoot = True;
+			currentPlayer->canShoot = True;
+			for (int type = 0; type < TypesOfShips; type++)
+				for (int id = 0; id < currentPlayer->maxShips[type]; id++)
+					currentPlayer->ships[type][id].moves = 0;
 		}
 		else if (*game->commandArea == area)
 		{
@@ -588,6 +595,9 @@ Bool commandSHIP(GameState* game, char* arg, char* command)
 			return False;
 			break;
 		case FIELD_SHIP:
+		case FIELD_ENGINE:
+		case FIELD_CANNON:
+		case FIELD_RADAR:
 			throwException(command, ErrorCause[SHIP][7]);	
 			return False;
 			break;
@@ -659,35 +669,38 @@ Bool commandPLACE_SHIP(GameState* game, char* arg, char* command)
 		return False;
 	}
 
-	createShip(&shipPending, shipType, y, x, direction, True, NULL, True, True);
-	if (!isShipInPlayersStartingPosition(game->players[*game->currentPlayer], &shipPending))
-	{
-		throwException(command, ErrorCause[PLACE_SHIP][1]);	// Last Check - colisions
-		return False;
-	}
+createShip(&shipPending, shipType, y, x, direction, True, NULL, True, True);
+if (!isShipInPlayersStartingPosition(game->players[*game->currentPlayer], &shipPending))
+{
+	throwException(command, ErrorCause[PLACE_SHIP][1]);	// Last Check - colisions
+	return False;
+}
 
-	Field collides = checkShipPositionBoard(game->board, &shipPending);
-	switch (collides)
-	{
-	case FIELD_REEF:
-		throwException(command, ErrorCause[SHIP][8]);
-		return False;
-		break;
-	case FIELD_SHIP:
-		throwException(command, ErrorCause[SHIP][7]);
-		return False;
-		break;
-	case FIELD_EMPTY:
-		break;
-	default:
-		throwException(command, ErrorCause[ERROR][0]);
-	}
+Field collides = checkShipPositionBoard(game->board, &shipPending);
+switch (collides)
+{
+case FIELD_REEF:
+	throwException(command, ErrorCause[PLACE_SHIP][8]);
+	return False;
+	break;
+case FIELD_SHIP:
+case FIELD_ENGINE:
+case FIELD_CANNON:
+case FIELD_RADAR:
+	throwException(command, ErrorCause[PLACE_SHIP][7]);
+	return False;
+	break;
+case FIELD_EMPTY:
+	break;
+default:
+	throwException(command, ErrorCause[ERROR][0]);
+}
 
-	game->players[*game->currentPlayer]->ships[shipType][input_id] = shipPending;
-	game->players[*game->currentPlayer]->shipPartsLeft += ShipLength[shipType];
-	game->players[*game->currentPlayer]->allPlaced = allShipsPlaced(game->players[*game->currentPlayer]);
-	placeShip(game->board, &shipPending);
-	return True;
+game->players[*game->currentPlayer]->ships[shipType][input_id] = shipPending;
+game->players[*game->currentPlayer]->shipPartsLeft += ShipLength[shipType];
+game->players[*game->currentPlayer]->allPlaced = allShipsPlaced(game->players[*game->currentPlayer]);
+placeShip(game->board, &shipPending);
+return True;
 }
 
 Bool commandSHOOT(GameState* game, char* arg, char* command)
@@ -746,9 +759,8 @@ Bool commandBOARD_SIZE(GameState* game, char* arg, char* command)
 {
 	int y, x;
 	if (sscanf(arg, "%d %d", &y, &x) != CommandArgs[BOARD_SIZE])
-	{
 		return False;
-	}
+
 	for (int i = 0; i < game->board->sizeY; i++)
 		free(game->board->fields[i]);
 	free(game->board->fields);
@@ -757,6 +769,66 @@ Bool commandBOARD_SIZE(GameState* game, char* arg, char* command)
 	return True;
 }
 
+Bool commandMOVE(GameState* game, char* arg, char* command)
+{
+	int shipId;
+	char c_shipType[4], moveDir;
+	ShipType shipType;
+	Player* currentPlayer = game->players[*game->currentPlayer];
+	if (sscanf(arg, "%d %s %c", &shipId, &c_shipType, &moveDir) != CommandArgs[MOVE])
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+
+	if (!parseInput_ship(c_shipType, &shipType))
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	if (moveDir != 'F' && moveDir != 'L' && moveDir != 'R')
+	{
+		throwException(command, ErrorCause[ERROR][1]);
+		return False;
+	}
+	Ship* currentShip = &currentPlayer->ships[shipType][shipId];
+
+	if(currentShip->moves >= 3)
+	{
+		throwException(command, ErrorCause[MOVE][4]);
+		return False;
+	}
+	if (currentShip->part[currentShip->length-1] == PART_DESTROYED)
+	{
+		throwException(command, ErrorCause[MOVE][4]);
+		return False;
+	}
+	switch (rotateShip(game->board, &currentPlayer->ships[shipType][shipId], moveDir))
+	{
+	case FIELD_EMPTY:
+		currentShip->moves += 1;
+		return True;
+		break;
+	case FIELD_SHIP:
+	case FIELD_ENGINE:
+	case FIELD_CANNON:
+	case FIELD_RADAR:
+		throwException(command, ErrorCause[MOVE][1]);
+		return False;
+		break;
+	case FIELD_REEF:
+		throwException(command, ErrorCause[MOVE][2]);
+		return False;
+		break;
+	case FIELD_OUT_OF_BOARD:
+		throwException(command, ErrorCause[MOVE][3]);
+		return False;
+		break;
+	}
+
+	
+	return True;
+}
 
 
 

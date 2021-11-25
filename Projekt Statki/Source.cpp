@@ -34,14 +34,13 @@ int main()
 			break;
 		}
 
-		if (commandResult == False)
-			gameOver = True;
+		if (commandResult == False) gameOver = True;
 
 		winner = checkWin(gameState->players);
 		
 		if (winner != P_NONE)
 		{
-			printf("%c WON", (winner + 'A'));
+			printf("%c won", (winner + 'A'));
 			gameOver = True;
 		}
 	}

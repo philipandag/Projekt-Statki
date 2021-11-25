@@ -8,10 +8,10 @@ Board* createBoard(int y, int x)
 	{
 		Board* board = (Board*)malloc(sizeof(Board));
 
-		board->fields = (char**)malloc(sizeof(char*) * y);
+		board->fields = (Field**)malloc(sizeof(Field*) * y);
 		for (int i = 0; i < y; i++)
 		{
-			board->fields[i] = (char*)malloc(sizeof(char) * x);
+			board->fields[i] = (Field*)malloc(sizeof(Field) * x);
 			for (int j = 0; j < x; j++)
 			{
 				board->fields[i][j] = FIELD_EMPTY;
@@ -268,15 +268,23 @@ inline Field partToField(ShipParts part)
 {
 	return static_cast<Field>(part);
 }
-void updateShip(Board* board, Ship* oldShip, Ship* newShip)
+Field updateShip(Board* board, Ship* oldShip, Ship* newShip)
 {
 	deleteShip(board, oldShip);
-	placeShip(board, newShip);
+	Field result = checkShipPositionBoard(board, newShip);
+	if (result == FIELD_EMPTY)
+	{
+		placeShip(board, newShip);
+		return FIELD_EMPTY;
+	}
+
+	placeShip(board, oldShip);
+	return result;
 }
 
 void setBoardField(Board* board, int y, int x, char piece) 
 {
-	board->fields[y][x] = piece;
+	board->fields[y][x] = charToField(piece);
 }
 
 Bool placeReef(Board* board, int y1, int x1, int y2, int x2)
@@ -292,7 +300,7 @@ Bool placeReef(Board* board, int y1, int x1, int y2, int x2)
 			}
 	return True;
 }
-Bool checkShipPartTooClose(Board* board, Ship* ship, int xDir, int yDir, int partId)
+Bool checkShipPartTooClose(Board* board, Ship* ship, int yDir, int xDir, int partId)
 {
 	if (xDir != 0 && yDir != 0)
 		return True;
@@ -308,6 +316,7 @@ Bool checkShipPartTooClose(Board* board, Ship* ship, int xDir, int yDir, int par
 	int dx2 = dx == 0 ? 1 : dx*partId;
 	// dy1, dy2 - if oriented horizontally, they equal -1, 1, else dy
 	// dx1, dx2 - if oriented vertically, they equal -1, 1, else dx
+
 	if (partId == -1 || partId == ship->length)
 	{
 		if (onBoard(board, ship->y + dy1, ship->x + dx1) && (board->fields[ship->y + dy1][ship->x + dx1] != FIELD_EMPTY && board->fields[ship->y + dy1][ship->x + dx1] != FIELD_REEF)
@@ -336,84 +345,99 @@ Bool checkShipPartTooClose(Board* board, Ship* ship, int xDir, int yDir, int par
 
 Field checkShipPositionBoard(Board* board, Ship* ship)
 {
-	Field collidesWith = FIELD_EMPTY;
+	int yDir = 0, xDir = 0;
+
+	xDir += ship->direction == E;
+	xDir -= (ship->direction == W);
+	yDir -= (ship->direction == N);
+	yDir += ship->direction == S;
+
 	if (ship->x >= 0 && ship->x < board->sizeX || ship->y >= 0 || ship->y < board->sizeY)
 	{
-		switch (ship->direction)
+		if (checkShipPartTooClose(board, ship, xDir, yDir, -1))
+			return FIELD_SHIP;
+		for (int i = 0; i < ship->length; i++) // check colision
 		{
-		case N://Facing: Y-
-			for (int i = 0; i < ship->length; i++) // check colision
+			if (!onBoard(board, ship->y - yDir*i, ship->x - xDir*i))
 			{
-				if (board->fields[ship->y + i][ship->x] == FIELD_REEF)
-				{
-					return FIELD_REEF;
-					break;
-				}
-				if (board->fields[ship->y + i][ship->x] == FIELD_RADAR || board->fields[ship->y + i][ship->x] == FIELD_CANNON || board->fields[ship->y + i][ship->x] == FIELD_SHIP || board->fields[ship->y + i][ship->x] == FIELD_ENGINE)
-				{
-					return FIELD_SHIP;
-					break;
-				}
+				return FIELD_OUT_OF_BOARD;
+				break;
 			}
-			for (int i = -1; i < ship->length+1; i++) // check if touches other ships
+			if (board->fields[ship->y - yDir*i][ship->x - xDir*i] != FIELD_EMPTY)
 			{
-				if (checkShipPartTooClose(board, ship, 0, 1, i))
-					return FIELD_SHIP;
+				return board->fields[ship->y - yDir*i][ship->x - xDir*i];
+				break;
 			}
-			break;
-
-		case S: // FACING Y+
-			for (int i = 0; i < ship->length; i++) // check colision
+			if (checkShipPartTooClose(board, ship, -yDir, -xDir, i))
 			{
-				if (board->fields[ship->y - i][ship->x] != FIELD_EMPTY)
-				{
-					collidesWith = FIELD_SHIP;
-					break;
-				}
+				return FIELD_SHIP;
+				break;
 			}
-			for (int i = -1; i < ship->length + 1; i++) // check if touches other ships
-			{
-				if(checkShipPartTooClose(board, ship, 0, -1, i))
-					return FIELD_SHIP;
-			}
-			break;
-
-		case E: // FACING X+
-			for (int i = 0; i < ship->length; i++) // check colision
-			{
-				if (board->fields[ship->y][ship->x - i] != FIELD_EMPTY)
-				{
-					collidesWith = FIELD_SHIP;
-					break;
-				}
-			}
-			for (int i = -1; i < ship->length + 1; i++) // check if touches other ships
-			{
-				if(checkShipPartTooClose(board, ship, -1, 0, i))
-					return FIELD_SHIP;
-			}
-			break;
-
-		case W: // FACING X-
-			for (int i = 0; i < ship->length; i++) // check colision
-			{
-				if (board->fields[ship->y][ship->x + i] != FIELD_EMPTY)
-				{
-					collidesWith = FIELD_SHIP;
-					break;
-				}
-			}
-			for (int i = -1; i < ship->length + 1; i++) // check if touches other ships
-			{
-				if(checkShipPartTooClose(board, ship, 1, 0, i))
-					return FIELD_SHIP;
-			}
-			break;
 		}
+		if (checkShipPartTooClose(board, ship, -yDir, -xDir, ship->length))
+			return FIELD_SHIP;
 	}
 	else
-		collidesWith = FIELD_SHIP;
+		return FIELD_SHIP;
 
+	return FIELD_EMPTY;
+}
+Field moveShip(Board* board, Ship* ship)
+{
+	Ship shipPending = *ship;
 
-	return collidesWith;
+	shipPending.y -= shipPending.direction == N;
+	shipPending.y += shipPending.direction == S;
+	shipPending.x += shipPending.direction == E;
+	shipPending.x -= shipPending.direction == W;
+	Field result = updateShip(board, ship, &shipPending);
+	if (result == FIELD_EMPTY)
+		*ship = shipPending;
+
+	return result;
+}
+Field rotateShip(Board* board, Ship* ship, char moveDir)
+{
+	Field result = moveShip(board, ship);
+	if (result != FIELD_EMPTY)
+		return result;
+
+	Ship shipPending = *ship;
+	deleteShip(board, ship);
+
+	switch (moveDir)
+	{
+	case 'F': //Directions: N=0, E=1, S=2, W=3
+		break;
+	case 'L':
+		shipPending.direction = rotate(shipPending.direction, -1);
+		shipPending.y -= (shipPending.direction == N) * (shipPending.length - 1);
+		shipPending.y += (shipPending.direction == S) * (shipPending.length - 1);
+		shipPending.x += (shipPending.direction == E) * (shipPending.length - 1);
+		shipPending.x -= (shipPending.direction == W) * (shipPending.length - 1);
+		break;
+	case 'R':
+		shipPending.direction = rotate(shipPending.direction, 1);
+		shipPending.y -= (shipPending.direction == N) * (shipPending.length - 1);
+		shipPending.y += (shipPending.direction == S) * (shipPending.length - 1);
+		shipPending.x += (shipPending.direction == E) * (shipPending.length - 1);
+		shipPending.x -= (shipPending.direction == W) * (shipPending.length - 1);
+		break;
+	}
+
+	result = updateShip(board, ship, &shipPending);
+	if (result == FIELD_EMPTY)
+		*ship = shipPending;
+	return result;
+
+}
+
+inline Compass rotate(Compass direction, int amount)
+{
+	return static_cast<Compass>(((int)direction + amount + 4) % 4);
+}
+
+inline Field charToField(char c)
+{
+	return static_cast<Field>(c);
 }

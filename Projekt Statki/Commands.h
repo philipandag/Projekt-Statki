@@ -27,7 +27,8 @@ enum Command {
 	PLAYERA,
 	PLAYERB,
 	PLACE_SHIP,
-	SHOOT
+	SHOOT,
+	MOVE
 };
 
 enum CommandArea {
@@ -82,6 +83,8 @@ Bool commandBOARD_SIZE(GameState* game, char* arg, char* command);
 Bool commandPLACE_SHIP(GameState* game, char* arg, char* command);
 
 Bool commandSHOOT(GameState* game, char* arg, char* command);
+
+Bool commandMOVE(GameState* game, char* arg, char* command);
 
 Bool parseInput_player(char* p);
 
